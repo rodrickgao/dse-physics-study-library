@@ -24,6 +24,7 @@ body {
   background: var(--wash);
   color: var(--ink);
   font-family: Inter, "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  transition: background-color 360ms ease, color 360ms ease;
 }
 
 button, input { font: inherit; }
@@ -120,6 +121,29 @@ main {
 }
 
 .library-switch button:hover { background: #f8faff; }
+.library-switch .site-back-button {
+  position: relative;
+  border-right: 1px solid var(--line);
+  border-radius: 11px 7px 7px 11px;
+  background: var(--blue-soft);
+  color: var(--blue-dark);
+}
+.library-switch .site-back-button:hover:not(:disabled) {
+  background: #dce8ff;
+  box-shadow: 0 9px 20px rgba(36, 94, 199, .15);
+}
+.library-switch .site-back-button:disabled {
+  background: transparent;
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: .45;
+}
+.site-back-button .back-icon {
+  background: rgba(36, 94, 199, .12);
+  font-size: 1.08rem;
+  transition: transform 320ms cubic-bezier(.22, 1, .36, 1);
+}
+.site-back-button:hover:not(:disabled) .back-icon { transform: translateX(-4px); }
 .library-switch button.active {
   background: var(--ink);
   color: #fff;
@@ -314,11 +338,48 @@ main {
 .knowledge-link[class*="book-"] { border-color: var(--book-border); background: var(--book-bg); color: var(--book-ink); }
 .quick-result[class*="book-"] { border-color: var(--book-border); background: var(--book-bg); }
 
-button, .quick-result, .paper-search-result, .knowledge-link { transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease; }
-button:active:not(:disabled), .quick-result:active, .paper-search-result:active, .knowledge-link:active { transform: scale(.97); }
-.tap-feedback { animation: tapFlash 190ms ease; }
-@keyframes tapFlash { 0% { box-shadow: 0 0 0 0 rgba(36, 94, 199, .28); } 100% { box-shadow: 0 0 0 8px rgba(36, 94, 199, 0); } }
-@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } button, .quick-result, .paper-search-result, .knowledge-link { transition: none; } .tap-feedback { animation: none; } }
+button, .quick-result, .paper-search-result, .knowledge-link {
+  transition:
+    transform 300ms cubic-bezier(.22, 1, .36, 1),
+    box-shadow 300ms cubic-bezier(.22, 1, .36, 1),
+    background-color 260ms ease,
+    border-color 260ms ease,
+    color 260ms ease,
+    opacity 260ms ease;
+}
+button:hover:not(:disabled), .quick-result:hover, .paper-search-result:hover, .knowledge-link:hover {
+  transform: translateY(-2px);
+}
+button:active:not(:disabled), .quick-result:active, .paper-search-result:active, .knowledge-link:active {
+  transform: translateY(0) scale(.955);
+  transition-duration: 100ms;
+}
+.tap-feedback { animation: tapFlash 420ms cubic-bezier(.22, 1, .36, 1); }
+.route-enter-forward { animation: routeEnterForward 460ms cubic-bezier(.22, 1, .36, 1) both; }
+.route-enter-back { animation: routeEnterBack 460ms cubic-bezier(.22, 1, .36, 1) both; }
+.answer-reveal { animation: answerReveal 420ms cubic-bezier(.22, 1, .36, 1) both; transform-origin: top center; }
+@keyframes tapFlash {
+  0% { box-shadow: 0 0 0 0 rgba(36, 94, 199, .3); }
+  55% { box-shadow: 0 0 0 9px rgba(36, 94, 199, .08); }
+  100% { box-shadow: 0 0 0 15px rgba(36, 94, 199, 0); }
+}
+@keyframes routeEnterForward {
+  from { opacity: 0; transform: translate3d(22px, 8px, 0) scale(.992); filter: blur(2px); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+@keyframes routeEnterBack {
+  from { opacity: 0; transform: translate3d(-18px, 5px, 0) scale(.994); filter: blur(1.5px); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+@keyframes answerReveal {
+  from { opacity: 0; transform: translateY(-10px) scaleY(.97); }
+  to { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+  button, .quick-result, .paper-search-result, .knowledge-link, body { transition: none !important; }
+  .tap-feedback, .route-enter-forward, .route-enter-back, .answer-reveal { animation: none !important; }
+}
 
 .workspace {
   display: grid;
@@ -1225,7 +1286,7 @@ main {
 }
 
 .library-switch {
-  grid-template-columns: repeat(4, auto);
+  grid-template-columns: repeat(5, auto);
   gap: 2px;
   padding: 3px;
   border-color: #e1e2df;
@@ -1379,7 +1440,7 @@ body.home-mode .collection-status { display: none; }
 @media (max-width: 800px) {
   .hero-inner { padding-top: 18px; }
   body.section-mode .library-bar { align-items: stretch; flex-direction: column; }
-  .library-switch { width: 100%; grid-template-columns: repeat(4, 1fr); }
+  .library-switch { width: 100%; grid-template-columns: repeat(5, 1fr); }
   .library-switch button { justify-content: center; padding-right: 6px; }
   .library-switch button > span:last-child { display: none; }
   .toolbar { align-items: center; flex-direction: row; justify-content: space-between; }
@@ -1399,7 +1460,7 @@ body.home-mode .collection-status { display: none; }
 @media (max-width: 430px) {
   .portal-card { grid-template-columns: 28px minmax(0, 1fr) auto 16px; gap: 10px; }
   .portal-meta { padding: 5px 7px; }
-  .library-switch { grid-template-columns: repeat(4, 1fr); }
+  .library-switch { grid-template-columns: repeat(5, 1fr); }
   .library-switch button { min-width: 0; }
   .tab-icon { width: 25px; height: 25px; }
   .mistake-view-switch { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
@@ -1484,6 +1545,9 @@ body.home-mode .collection-status { display: none; }
 }
 [data-theme="dark"] .theme-toggle:hover { border-color: #59616e; color: #fff; }
 [data-theme="dark"] .library-switch button:hover { background: #292d34; }
+[data-theme="dark"] .library-switch .site-back-button { border-color: #3c424c; background: #232b38; color: #b8cff7; }
+[data-theme="dark"] .library-switch .site-back-button:hover:not(:disabled) { background: #2c3950; }
+[data-theme="dark"] .library-switch .site-back-button:disabled { background: transparent; color: #777f8b; }
 [data-theme="dark"] .library-switch button.active,
 [data-theme="dark"] .language-switch button.active { background: #e6e9ee; color: #1b1e23; }
 [data-theme="dark"] .active .tab-icon { background: rgba(0, 0, 0, .12); color: #1b1e23; }

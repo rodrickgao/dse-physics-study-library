@@ -10,6 +10,7 @@
   const statistics = window.DSE_STATISTICS || {};
   const MISTAKE_STORAGE_KEY = "dse-physics-mistakes-v1";
   const THEME_STORAGE_KEY = "dse-physics-theme-v1";
+  const HISTORY_STATE_KEY = "dse-physics-navigation-v1";
   const elementCache = new Map();
   const element = (id) => {
     if (!elementCache.has(id)) elementCache.set(id, document.getElementById(id));
@@ -187,6 +188,95 @@
     homeKnowledgeQuery: "",
     mistakeView: "questions",
   };
+
+  const navigationFields = [
+    "library", "language", "year", "paper", "question", "paper2Section",
+    "book", "textbookDirectory", "chapter", "query", "paperQuery",
+    "paperSearchYear", "homeKnowledgeQuery", "mistakeView",
+  ];
+  let navigationDepth = 0;
+  let restoringHistory = false;
+  let scrollHistoryTimer = 0;
+
+  function navigationSnapshot() {
+    return Object.fromEntries(navigationFields.map((field) => [field, state[field]]));
+  }
+
+  function navigationSignature(snapshot = navigationSnapshot()) {
+    return JSON.stringify(snapshot);
+  }
+
+  function historyPayload({ snapshot = navigationSnapshot(), scrollY = window.scrollY, depth = navigationDepth } = {}) {
+    return { key: HISTORY_STATE_KEY, snapshot, scrollY: Math.max(0, Math.round(scrollY)), depth };
+  }
+
+  function replaceCurrentHistory(scrollY = window.scrollY) {
+    if (restoringHistory) return;
+    window.history.replaceState(historyPayload({ scrollY }), "", window.location.href);
+  }
+
+  function pushCurrentHistory(previousSnapshot) {
+    const nextSnapshot = navigationSnapshot();
+    if (navigationSignature(previousSnapshot) === navigationSignature(nextSnapshot)) return;
+    navigationDepth += 1;
+    const nextScroll = previousSnapshot.library === nextSnapshot.library ? window.scrollY : 0;
+    window.history.pushState(historyPayload({ snapshot: nextSnapshot, scrollY: nextScroll }), "", window.location.href);
+    updateBackButton();
+    animateNavigation(previousSnapshot, nextSnapshot, "forward");
+  }
+
+  function updateBackButton() {
+    const button = element("site-back-button");
+    if (!button) return;
+    button.disabled = navigationDepth <= 0;
+    button.setAttribute("aria-label", state.language === "eng" ? "Back to previous page" : "返回上一页");
+    element("site-back-label").textContent = state.language === "eng" ? "Back" : "返回";
+    element("site-back-note").textContent = state.language === "eng" ? "Previous page" : "上一页";
+  }
+
+  function animateNavigation(previousSnapshot, nextSnapshot, direction) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let target = element(`${nextSnapshot.library}-view`);
+    if (previousSnapshot?.library === nextSnapshot.library && nextSnapshot.library === "papers") {
+      target = document.querySelector("#papers-view .paper-card") || target;
+    } else if (previousSnapshot?.library === nextSnapshot.library && nextSnapshot.library === "textbook") {
+      target = element("textbook-browser").hidden ? element("textbook-directory") : element("textbook-browser");
+    } else if (previousSnapshot?.library === nextSnapshot.library && nextSnapshot.library === "mistakes") {
+      target = nextSnapshot.mistakeView === "analysis" ? element("mistake-analysis-panel") : element("mistake-questions-panel");
+    }
+    if (!target) return;
+    const animationClass = direction === "back" ? "route-enter-back" : "route-enter-forward";
+    target.classList.remove("route-enter-forward", "route-enter-back");
+    void target.offsetWidth;
+    target.classList.add(animationClass);
+    window.setTimeout(() => target.classList.remove(animationClass), 520);
+  }
+
+  function restoreNavigation(payload) {
+    if (!payload?.snapshot) return;
+    const previousSnapshot = navigationSnapshot();
+    restoringHistory = true;
+    navigationFields.forEach((field) => {
+      if (Object.hasOwn(payload.snapshot, field)) state[field] = payload.snapshot[field];
+    });
+    navigationDepth = Math.max(0, Number(payload.depth) || 0);
+    updateTopLevel();
+    element("textbook-search").value = state.query || "";
+    element("paper-search-query").value = state.paperQuery || "";
+    updateBackButton();
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: Number(payload.scrollY) || 0, behavior: "auto" });
+      animateNavigation(previousSnapshot, payload.snapshot, "back");
+      restoringHistory = false;
+    });
+  }
+
+  function initializeHistory() {
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+    navigationDepth = 0;
+    window.history.replaceState(historyPayload({ depth: 0 }), "", window.location.href);
+    updateBackButton();
+  }
 
   const copy = {
     eng: {
@@ -1422,6 +1512,7 @@
     else if (isPapers) { renderPaperSearch(); renderPapers(); }
     else if (isTextbook) renderTextbook();
     else renderMistakes();
+    updateBackButton();
   }
 
   function bindList(id, selector, action, renderAction = updateTopLevel) {
@@ -1453,12 +1544,20 @@
     mistakeEntriesCache = null;
     updateTopLevel();
     restoreReadingPosition(knowledgeAnchor, scrollTop);
+    replaceCurrentHistory(scrollTop);
+    animateNavigation(null, navigationSnapshot(), "forward");
   });
 
   element("theme-toggle").addEventListener("click", () => {
     state.theme = state.theme === "dark" ? "light" : "dark";
     try { window.localStorage.setItem(THEME_STORAGE_KEY, state.theme); } catch { /* Keep the current-session theme. */ }
     applyTheme();
+  });
+
+  element("site-back-button").addEventListener("click", () => {
+    if (navigationDepth <= 0) return;
+    replaceCurrentHistory();
+    window.history.back();
   });
 
   element("open-papers").addEventListener("click", () => {
@@ -1565,6 +1664,12 @@
     element("answer-button").querySelector("span").textContent = open
       ? currentCopy().hideAnswer
       : currentCopy().showAnswer;
+    if (open) {
+      panel.classList.remove("answer-reveal");
+      void panel.offsetWidth;
+      panel.classList.add("answer-reveal");
+      window.setTimeout(() => panel.classList.remove("answer-reveal"), 460);
+    }
   });
   let searchTimer;
   element("textbook-search").addEventListener("input", (event) => {
@@ -1585,10 +1690,13 @@
   document.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
+      const previousSnapshot = navigationSnapshot();
+      replaceCurrentHistory();
       state.library = "textbook";
       state.textbookDirectory = true;
       updateTopLevel();
       element("textbook-search").focus();
+      pushCurrentHistory(previousSnapshot);
     }
   });
   element("book-directory-list").addEventListener("click", (event) => {
@@ -1610,6 +1718,35 @@
     renderTextbook();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
+
+  const navigationClickSelector = [
+    "[data-library]", "#open-papers", "#open-textbook", "#open-mistakes", "#browse-for-mistakes",
+    "#paper-search-results [data-year-index]", "#related-links [data-sequence]",
+    "#year-list [data-index]", "#paper-list [data-index]", "#paper2-section-list [data-section]",
+    "#question-list [data-index]", "#previous-button", "#next-button",
+    "#book-list [data-book]", "#chapter-list [data-chapter]",
+    "#book-directory-list [data-directory-book]", "#back-to-books", "#clear-search",
+    "#knowledge-points [data-question-key]", "#mistakes-view [data-question-key]",
+    "#mistakes-view [data-point-sequence]", "#mistake-questions-tab", "#mistake-analysis-tab",
+  ].join(",");
+
+  document.addEventListener("click", (event) => {
+    const target = event.target.closest(navigationClickSelector);
+    if (!target || target.disabled) return;
+    const previousSnapshot = navigationSnapshot();
+    replaceCurrentHistory();
+    window.setTimeout(() => pushCurrentHistory(previousSnapshot), 0);
+  }, true);
+
+  window.addEventListener("popstate", (event) => {
+    if (event.state?.key === HISTORY_STATE_KEY) restoreNavigation(event.state);
+  });
+
+  window.addEventListener("scroll", () => {
+    window.clearTimeout(scrollHistoryTimer);
+    scrollHistoryTimer = window.setTimeout(() => replaceCurrentHistory(), 120);
+  }, { passive: true });
+
   document.addEventListener("click", (event) => {
     const target = event.target.closest("button");
     if (!target || target.disabled) return;
@@ -1672,5 +1809,6 @@
     document.body.innerHTML = '<p class="empty">Study data could not be loaded.</p>';
     return;
   }
+  initializeHistory();
   updateTopLevel();
 })();

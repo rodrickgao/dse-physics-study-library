@@ -13,7 +13,7 @@
         : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     } catch { document.documentElement.dataset.theme = "light"; }
   </script>
-  <link rel="stylesheet" href="styles.css?v=20260816-4">
+  <link rel="stylesheet" href="styles.css?v=20260831-2">
 </head>
 <body>
   <header class="hero">
@@ -27,6 +27,10 @@
   <main>
     <div class="library-bar">
       <div class="library-switch" role="tablist" aria-label="Library">
+        <button id="site-back-button" class="site-back-button" type="button" aria-label="Back to previous page" disabled>
+          <span class="tab-icon back-icon" aria-hidden="true">←</span>
+          <span><strong id="site-back-label">返回</strong><small id="site-back-note">上一页</small></span>
+        </button>
         <button id="home-tab" type="button" role="tab" data-library="home" aria-selected="true">
           <span class="tab-icon" aria-hidden="true">⌂</span>
           <span><strong>主页</strong><small>Search directory</small></span>
@@ -262,6 +266,6 @@
   <script src="statistics-data.js"></script>
   <script src="vendor/pdf-lib.min.js?v=20260816-1"></script>
   <script src="mistake-pdf.js?v=20260816-1"></script>
-  <script src="app.js?v=20260831-1"></script>
+  <script src="app.js?v=20260831-2"></script>
 </body>
 </html>
