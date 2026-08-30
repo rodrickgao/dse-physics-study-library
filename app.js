@@ -1380,6 +1380,21 @@
     });
   }
 
+  function renderAdjacentQuestion(questionIndex) {
+    const questionTop = element("question-heading").getBoundingClientRect().top;
+    state.question = questionIndex;
+    renderPapers();
+    window.requestAnimationFrame(() => {
+      const scrollingElement = document.scrollingElement || document.documentElement;
+      const previousScrollBehavior = scrollingElement.style.scrollBehavior;
+      scrollingElement.style.scrollBehavior = "auto";
+      scrollingElement.scrollTop += element("question-heading").getBoundingClientRect().top - questionTop;
+      window.requestAnimationFrame(() => {
+        scrollingElement.style.scrollBehavior = previousScrollBehavior;
+      });
+    });
+  }
+
   function updateTopLevel() {
     const labels = currentCopy();
     const isHome = state.library === "home";
@@ -1529,9 +1544,7 @@
       : paper.questions.map((_, index) => index);
     const position = indices.indexOf(state.question);
     if (position > 0) {
-      state.question = indices[position - 1];
-      renderPapers();
-      window.scrollTo({ top: 0, behavior: "auto" });
+      renderAdjacentQuestion(indices[position - 1]);
     }
   });
   element("next-button").addEventListener("click", () => {
@@ -1541,9 +1554,7 @@
       : paper.questions.map((_, index) => index);
     const position = indices.indexOf(state.question);
     if (position >= 0 && position < indices.length - 1) {
-      state.question = indices[position + 1];
-      renderPapers();
-      window.scrollTo({ top: 0, behavior: "auto" });
+      renderAdjacentQuestion(indices[position + 1]);
     }
   });
   element("answer-button").addEventListener("click", () => {
